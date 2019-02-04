@@ -13,7 +13,7 @@ def aligntocat(cube,catalogue):
     import numpy as np
     from astropy import wcs
 
-    print "Processing cube {} for offsets".format(cube)
+    print("Processing cube {} for offsets".format(cube))
 
     #first project the cube to create a white image with wcs
     img, var, wcsimg = cube2img(cube)
@@ -51,9 +51,9 @@ def aligntocat(cube,catalogue):
     raoff=np.median(np.array(raoffcurrent))
     decoff=np.median(np.array(decoffcurrent))
      
-    print "Offsets for cube {} RA: {} Dec: {}".format(cube,raoff*3600.,decoff*3600.)
-    print "Error offsets for cube {} RA: {} Dec: {}".format(cube,np.std(np.array(raoffcurrent))*3600.,
-                                                            np.std(np.array(decoffcurrent))*3600.)
+    print("Offsets for cube {} RA: {} Dec: {}".format(cube,raoff*3600.,decoff*3600.))
+    print("Error offsets for cube {} RA: {} Dec: {}".format(cube,np.std(np.array(raoffcurrent))*3600.,
+                                                            np.std(np.array(decoffcurrent))*3600.))
                              
     return raoff,decoff
 
@@ -77,7 +77,7 @@ def cube2img(cube,write=None,wrange=None,helio=0,filt=None):
     import matplotlib.pyplot as plt
     from astropy.io import fits 
     from astropy import wcs
-    from mypython.filters import filter as fil
+    from ..filters import filter as fil
     from scipy import interpolate
     from scipy import integrate
 
@@ -92,7 +92,7 @@ def cube2img(cube,write=None,wrange=None,helio=0,filt=None):
     #compute the desired transmission curves#
     #########################################
 
-    #if no filter or wrange, default to mix max cube
+    #if no filter or wrange, default to min, max cube
     if not (wrange) and not (filt):
         wrange=[np.min(wavec),np.max(wavec)]
 
@@ -119,10 +119,10 @@ def cube2img(cube,write=None,wrange=None,helio=0,filt=None):
         num,err=integrate.quad(lefffn,wrange[0],wrange[1])
         den,err=integrate.quad(trans_fnc,wrange[0],wrange[1])
         lmean=num/den
-        print 'Filter mean wavelength ', lmean 
+        print('Filter mean wavelength ', lmean) 
         #Compute the ZP in AB - native image is in 1e-20 erg/s/cm2/A
         ZP=-2.5*np.log10(lmean*lmean/29979245800.*1e-8*1e-20)-48.6
-        print 'Filter zeropoint ',  ZP
+        print('Filter zeropoint ',  ZP)
         
     #implement filter transmission
     if(filt):
@@ -154,10 +154,10 @@ def cube2img(cube,write=None,wrange=None,helio=0,filt=None):
         num,err=integrate.quad(lefffn,min(flwn),max(flwn))
         den,err=integrate.quad(trans_fnc,min(flwn),max(flwn))
         lmean=num/den
-        print 'Filter mean wavelength ', lmean 
+        print('Filter mean wavelength ', lmean)
         #Compute the ZP AB - image is in 1e-20 erg/s/cm2/A
         ZP=-2.5*np.log10(lmean*lmean/29979245800.*1e-8*1e-20)-48.6
-        print 'Filter zeropoint ',  ZP
+        print('Filter zeropoint ',  ZP)
 
 
     ###############################
@@ -197,7 +197,7 @@ def cube2img(cube,write=None,wrange=None,helio=0,filt=None):
     
     #if write, write
     if(write):
-        print 'Writing to ', write
+        print('Writing to ', write)
         header=wcsimg.to_header()
         header["ZPAB"]=ZP
         hduhead = fits.PrimaryHDU(img,header=header)
@@ -455,7 +455,7 @@ def readcube(cube, helio=0):
     #compute the helio correction on the fly
     if(helio != 0):
         hel_corr = np.sqrt( (1. + helio/299792.458) / (1. - helio/299792.458) )
-        print 'Helio centric correction of {} km/s and lambda {}'.format(helio,hel_corr) 
+        print('Helio centric correction of {} km/s and lambda {}'.format(helio,hel_corr)) 
     else:
         hel_corr=1.0
 
@@ -629,7 +629,7 @@ def check_flux_scaling(reference,listexp,maskedges=None,verbose=True,flxlim=150.
         if(verbose):
             plt.scatter(ref_phot[use],chk_phot[use]/ref_phot[use])
             plt.show()
-        print ("Scaling for {} is {}".format(ff,np.median(chk_phot[use]/ref_phot[use])))
+        print("Scaling for {} is {}".format(ff,np.median(chk_phot[use]/ref_phot[use])))
         
     fl.close()
 

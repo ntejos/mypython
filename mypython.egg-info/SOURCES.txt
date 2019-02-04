@@ -1,0 +1,7 @@
+README.md
+setup.py
+mypython.egg-info/PKG-INFO
+mypython.egg-info/SOURCES.txt
+mypython.egg-info/dependency_links.txt
+mypython.egg-info/not-zip-safe
+mypython.egg-info/top_level.txt

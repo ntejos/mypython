@@ -73,9 +73,9 @@ class Filter:
         maxint=np.min([maxwl,maxwf])
 
         
-        print "Filter wave range ", minwf, maxwf
-        print "Data wave range ", minwl, maxwl
-        print "Actual integration ", minint, maxint
+        print("Filter wave range ", minwf, maxwf)
+        print("Data wave range ", minwl, maxwl)
+        print("Actual integration ", minint, maxint)
 
         #create interpolation function 
         listint = interp1d(wavein,listin)
