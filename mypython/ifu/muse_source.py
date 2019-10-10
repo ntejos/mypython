@@ -3,7 +3,7 @@ These are sets of utilities to handle muse sources
 
 """
 
-def findsources(image,cube,check=False,output='./',spectra=False,helio=0,nsig=2.,
+def findsources(image,cube,check=False,output='.',spectra=False,helio=0,nsig=2.,
                 minarea=10.,regmask=None,clean=True,outspec='Spectra',marz=False, 
 		rphot=False, sname='MUSE'):
 
@@ -84,13 +84,13 @@ def findsources(image,cube,check=False,output='./',spectra=False,helio=0,nsig=2.
     
 
     #check background level, but do not subtract it
-    print 'Checking background levels'
+    print('Checking background levels')
     bkg = sep.Background(data,mask=badmask)    
-    print 'Residual background level ', bkg.globalback
-    print 'Residual background rms ', bkg.globalrms
+    print('Residual background level ', bkg.globalback)
+    print('Residual background rms ', bkg.globalrms)
 
     if(check):
-        print 'Dumping sky...'
+        print('Dumping sky...')
         #dump sky properties
         back = bkg.back() 
         rms = bkg.rms()  
@@ -105,7 +105,7 @@ def findsources(image,cube,check=False,output='./',spectra=False,helio=0,nsig=2.
     segmap = np.zeros((header["NAXIS1"],header["NAXIS2"]))
     objects,segmap=sep.extract(data,thresh,segmentation_map=True,
                                minarea=minarea,clean=clean,mask=badmask,deblend_cont=0.0001)
-    print "Extracted {} objects... ".format(len(objects))
+    print("Extracted {} objects... ".format(len(objects)))
     
     
     if(spectra):
@@ -134,13 +134,13 @@ def findsources(image,cube,check=False,output='./',spectra=False,helio=0,nsig=2.
             nbj=nbj+1
 
     if(check):
-        print 'Dumping source mask...'
+        print('Dumping source mask...')
         hdumain  = fits.PrimaryHDU(srcmask,header=header)
         hdubk  = fits.ImageHDU(srcmask)
         hdulist = fits.HDUList([hdumain,hdubk])
         hdulist.writeto(output+"/source.fits",overwrite=True)
         
-        print 'Dumping segmentation map'
+        print('Dumping segmentation map')
         hdumain  = fits.PrimaryHDU(segmap,header=header)
         hdubk  = fits.ImageHDU(segmap)
         hdulist = fits.HDUList([hdumain,hdubk])
@@ -155,7 +155,7 @@ def findsources(image,cube,check=False,output='./',spectra=False,helio=0,nsig=2.
     ids  = np.arange(len(name))
     
     #write source catalogue
-    print 'Writing catalogue..'
+    print('Writing catalogue..')
     tab = table.Table(objects)
     tab.add_column(table.Column(name),0,name='name')
     tab.add_column(table.Column(ids),0,name='ID')
@@ -222,7 +222,7 @@ def findsources(image,cube,check=False,output='./',spectra=False,helio=0,nsig=2.
             marz_file(image, output+'/catalogue_r' + str(marz) +'.fits', outspec, output, r_lim=marz)
 
     
-    print 'All done'
+    print('All done')
     return objects
     
 
@@ -232,12 +232,15 @@ def marz_file(imagefile, catalogue, specdir, output,r_lim=False):
     from astropy.io import fits
     from astropy import wcs
     import numpy as np
+    import pdb
     
     #Makes a list of spectra files ** MUST be all and only spectra 
     #from catalogue**
     filelist = glob.glob(specdir+'/*')
     #resort the filelist into numeric order
-    filelist.sort(key=lambda f: int(filter(str.isdigit, f)))  
+    #Fixed the sorting algorithm to python 3 standards
+
+    filelist.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))  
     #Need catalogue of spectra objects            
     catalog = fits.open(catalogue)   
     #name of MARZ file
@@ -275,8 +278,8 @@ def marz_file(imagefile, catalogue, specdir, output,r_lim=False):
         type.append('P')
         intensity[filename[0],:] = data[0].data
         variance[filename[0],:]  = data[1].data
-        sky[filename[0],:]       = data[0].data*0.0
-	wavelength[filename[0],:] = data[2].data
+        sky[filename[0],:] = data[0].data*0.0
+        wavelength[filename[0],:] = data[2].data
 
     intensity[np.logical_not(np.isfinite(intensity))] = np.nan
     variance[np.logical_not(np.isfinite(variance))] = np.nan
@@ -376,7 +379,7 @@ def sourcephot(catalogue,image,segmap,detection,instrument='MUSE',dxp=0.,dyp=0.,
             if(zpab):
                 img[0].header['ZPAB']=zpab
         else:
-            print 'Instrument not supported!!'
+            print('Instrument not supported!!')
             exit()
     else:
         #for muse, keep eveything the same
@@ -400,7 +403,7 @@ def sourcephot(catalogue,image,segmap,detection,instrument='MUSE',dxp=0.,dyp=0.,
     if('MUSE' not in instrument):
         #allocate space for transformed segmentation map
         segmasktrans=np.zeros(dataflx.shape)
-        print "Remapping segmentation map to new image..."
+        print("Remapping segmentation map to new image...")
 
         #loop over original segmap and map to trasformed one
         #Just use nearest pixel, and keep only 1 when multiple choices 

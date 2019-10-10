@@ -37,15 +37,15 @@ class Muse(object):
  
         """
         
-        import muse_redux_basic as rdx
-        import os
+        from mypython.ifu import muse_redux_basic as rdx
+        import os,sys
 
         print('Starting reduction...')
         
         #First, make sure the various folders exist as needed 
         if not os.path.exists(path+"Raw"):
             print("Cannot find Raw data...")
-            exit()
+            sys.exit()
         if not os.path.exists(path+"Script"):
             os.makedirs(path+"Script")
         if not os.path.exists(path+"Proc"):
@@ -162,7 +162,7 @@ class Muse(object):
         import os
         import glob
         import subprocess
-        import muse_redux_cubex as cx 
+        from mypython.ifu import muse_redux_cubex as cx 
         import multiprocessing
         import numpy as np
 
@@ -214,7 +214,7 @@ class Muse(object):
         import os
         import glob
         import subprocess
-        import muse_redux_eso as ex 
+        from mypython.ifu import muse_redux_eso as ex 
         
         #first, list how many OBs are there
         listob=glob.glob('OB*')
@@ -268,7 +268,7 @@ class Muse(object):
         import os
         import glob
         import subprocess
-        import muse_redux_line as ex 
+        from mpython.ifu import muse_redux_line as ex 
 
         #first, list how many OBs are there
         listob=glob.glob('OB*')
@@ -341,7 +341,7 @@ class Muse(object):
         import os
         import glob
         import subprocess
-        import muse_redux_mpdaf as ex 
+        from mypython.ifu import muse_redux_mpdaf as ex 
 
         #first, list how many OBs are there
         listob=glob.glob('OB*')

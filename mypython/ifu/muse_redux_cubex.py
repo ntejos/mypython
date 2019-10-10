@@ -18,7 +18,7 @@ def individual_resample(listob,refpath='./',nproc=24):
     import subprocess
     import shutil
     from astropy.io import fits
-    import muse_utils as mut 
+    from mypython.ifu import muse_utils as mut 
     import numpy as np
 
     #grab top dir
@@ -680,6 +680,8 @@ def combine_cubes(cubes,masks,regions=True,final=False,halfset=False,halfsetfina
             #loop over and update with regions    
             for i,cmask in enumerate(listmask):
             
+                #Decode bytes-like object
+                cmask = cmask.decode('utf-8')
                 #create region name
                 regname=(cmask.split(".fits")[0])+".reg"
                 

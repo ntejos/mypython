@@ -14,7 +14,7 @@ def grabtime(namelist):
     for name in namelist:
         #grab time sequence
         tmstr=name.split("MUSE.")[1]
-        tm=time.strptime(tmstr.split(".")[0],'%Y-%m-%dT%H:%M:%S')
+        tm=time.strptime(tmstr.split(".")[0],'%Y-%m-%dT%H_%M_%S')
         timelist.append(time.mktime(tm))
 
     #return time in seconds
@@ -45,14 +45,14 @@ def parse_xml(path='./',nproc=12,pipecal=False):
             #mark valid data
             if("<file category=" in line):
                 tmptype=(line.split('"'))[1]
-                tmpname=(line.split('"'))[3]
+                tmpname=(line.split('"'))[3].replace(":","_")
                 #if new kew make a new set:
                 if tmptype not in xml_info.keys():
                     xml_info[tmptype]=set()
                 #next add to the set only if file exists
                 fileexist=glob.glob("{0}/Raw/{1}*".format(path,tmpname))
                 if(len(fileexist)>0):
-                    xml_info[tmptype].add(tmpname)                   
+                    xml_info[tmptype].add(tmpname)   
         xml.close()
 
     print('xml files loaded')
@@ -86,18 +86,18 @@ def parse_xml(path='./',nproc=12,pipecal=False):
                 #grab daily calibrations 
                 recent=np.where(delta_time <= 14.)
                 xml_info[kk]=currentlist[recent[0]]
-                print 'Found {0} {1} taken within 1 day'.format(len(recent[0]),kk)
+                print('Found {0} {1} taken within 1 day'.format(len(recent[0]),kk))
             elif((kk == 'SKYFLAT') or (kk == 'DARK')):
                 #grab within 30 days
                 recent=np.where(delta_time <= 30*12.)
                 xml_info[kk]=currentlist[recent[0]]
-                print 'Found {0} {1} taken within 20 days'.format(len(recent[0]),kk)
+                print('Found {0} {1} taken within 20 days'.format(len(recent[0]),kk))
             #This is when you want only the best one
             else:
                 #pick closest
                 mintm=np.argmin(delta_time)
                 xml_info[kk]=[currentlist[mintm]]
-                print 'Best {0} taken within {1} days'.format(kk,delta_time[mintm]/24.)
+                print('Best {0} taken within {1} days'.format(kk,delta_time[mintm]/24.))
 
     #set the calibration path relative and suffix
     xml_info["PATHCAL"]='../../Raw/'
@@ -127,6 +127,12 @@ def parse_xml(path='./',nproc=12,pipecal=False):
         staticalpath=esorexpath.split('/bin')[0]
         pipeversion=staticalpath.split('/')[-1]
         staticalpath='/cosma/local/muse/'+pipeversion+'/calib/muse-'+pipeversion+'/cal/'
+    elif('novo' in hostname):
+        output=os.popen("esorex --man-page muse_bias").readlines()
+        for i in output:
+            if('muse_bias -- version' in i):
+                pipeversion=i.split(" ")[-1].strip()
+        staticalpath='/home/sunil/EsoReflex/install/share/esopipes/datastatic/muse-'+pipeversion+'/'
     else:
         print('Please specify location of static calibrations for {}'.format(hostname))
 
@@ -465,7 +471,7 @@ def make_cubes(xml_info,nproc=12,wcsoff=None,refcube=None,scilist=None):
     #create suffixes as needed
     suffix = ''
     if(refcube):
-        print 'Using external WCS structure for cube output'
+        print('Using external WCS structure for cube output')
         suffix += '_pos'
     if(wcsoff):
         suffix += '_off'  
@@ -477,10 +483,9 @@ def make_cubes(xml_info,nproc=12,wcsoff=None,refcube=None,scilist=None):
         cname="DATACUBE_FINAL_EXP{0:d}{1}.fits".format(scilist[exp],suffix)
         pname="PIXTABLE_REDUCED_EXP{0:d}{1}.fits".format(scilist[exp],suffix)
         iname="IMAGE_FOV_EXP{0:d}{1}.fits".format(scilist[exp],suffix)
-        
         if not os.path.isfile(cname):
 
-            print "Processing exposure {0:d}".format(exp+1)
+            print("Processing exposure {0:d}".format(exp+1))
             
             #Write the sof file 
             sof=open("../../Script/scipost_{0:d}.sof".format(scilist[exp]),"w")
@@ -495,30 +500,30 @@ def make_cubes(xml_info,nproc=12,wcsoff=None,refcube=None,scilist=None):
                 sof.write("{0} OUTPUT_WCS\n".format(refcube)) 
 
             if(wcsoff):
-	        sof.write("OFFSET_LIST.fits OFFSET_LIST\n") 
-	    
-	    for ifu in range(24):
-		ifupixtab="PIXTABLE_OBJECT_{0:04d}-{1:02d}.fits".format(scilist[exp],ifu+1)
+                sof.write("OFFSET_LIST.fits OFFSET_LIST\n")
+
+        for ifu in range(24):
+            ifupixtab="PIXTABLE_OBJECT_{0:04d}-{1:02d}.fits".format(scilist[exp],ifu+1)
                 #now write the pix tab in sof
-                sof.write("{} PIXTABLE_OBJECT\n".format(ifupixtab)) 
+            sof.write("{} PIXTABLE_OBJECT\n".format(ifupixtab)) 
                 
-            #finish writing sof
-            sof.write("STD_RESPONSE_0001.fits STD_RESPONSE\n")
-            sof.write("STD_TELLURIC_0001.fits STD_TELLURIC\n")
-            sof.close()
+        #finish writing sof
+        sof.write("STD_RESPONSE_0001.fits STD_RESPONSE\n")
+        sof.write("STD_TELLURIC_0001.fits STD_TELLURIC\n")
+        sof.close()
 
-            #Write the command file 
-            scr=open("../../Script/make_scipost_{0:d}.sh".format(scilist[exp]),"w")
-            scr.write("OMP_NUM_THREADS={0:d}\n".format(nproc)) 
+        #Write the command file 
+        scr=open("../../Script/make_scipost_{0:d}.sh".format(scilist[exp]),"w")
+        scr.write("OMP_NUM_THREADS={0:d}\n".format(nproc)) 
 
-            scr.write('esorex --log-file=scipost_{0:d}.log muse_scipost --skymethod="none" --filter=white --save=cube,individual ../../Script/scipost_{0:d}.sof'.format(scilist[exp]))
-            scr.close()
-    
-            #Run pipeline 
-            subprocess.call(["sh", "../../Script/make_scipost_{0:d}.sh".format(scilist[exp])])    
-            subprocess.call(["mv","DATACUBE_FINAL.fits",cname])
-            subprocess.call(["mv","IMAGE_FOV_0001.fits",iname])
-            subprocess.call(["mv","PIXTABLE_REDUCED_0001.fits",pname])
+        scr.write('esorex --log-file=scipost_{0:d}.log muse_scipost --skymethod="none" --filter=white --save=cube,individual ../../Script/scipost_{0:d}.sof'.format(scilist[exp]))
+        scr.close()
+
+        #Run pipeline 
+        subprocess.call(["sh", "../../Script/make_scipost_{0:d}.sh".format(scilist[exp])])    
+        subprocess.call(["mv","DATACUBE_FINAL.fits",cname])
+        subprocess.call(["mv","IMAGE_FOV_0001.fits",iname])
+        subprocess.call(["mv","PIXTABLE_REDUCED_0001.fits",pname])
 
 
 def make_skymodel(xml_info,nproc=12):
