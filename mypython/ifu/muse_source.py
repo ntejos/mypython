@@ -187,7 +187,6 @@ def findsources(image,cube,check=False,output='.',spectra=False,helio=0,nsig=2.,
     hdulist = fits.HDUList([fits.PrimaryHDU(), tbhdu, tbhdu2])
     hdulist.writeto(output+'/catalogue.fits',overwrite=True)	
 
-    import pdb; pdb.set_trace()
     if((marz) & (spectra)):
         #if marz is True but no magnitude limit set, create marz file for whole catalogue
         if marz==True:
