@@ -116,7 +116,7 @@ def findsources(image,cube,check=False,output='.',spectra=False,helio=0,nsig=2.,
     objects, segmap=sep.extract(data,thresh,segmentation_map=True,
                                minarea=minarea,clean=clean,mask=badmask,deblend_cont=0.0001)
     print("Extracted {} objects... ".format(len(objects)))
-    import pdb;pdb.set_trace()
+    # import pdb;pdb.set_trace()
     
     if(spectra):
         if not os.path.exists(outspec):
