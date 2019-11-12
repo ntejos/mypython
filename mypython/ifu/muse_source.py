@@ -116,7 +116,7 @@ def findsources(image,cube,check=False,output='.',spectra=False,helio=0,nsig=2.,
     objects, segmap=sep.extract(data,thresh,segmentation_map=True,
                                minarea=minarea,clean=clean,mask=badmask,deblend_cont=0.0001)
     print("Extracted {} objects... ".format(len(objects)))
-    
+    import pdb;pdb.set_trace()
     
     if(spectra):
         if not os.path.exists(outspec):
@@ -236,6 +236,182 @@ def findsources(image,cube,check=False,output='.',spectra=False,helio=0,nsig=2.,
             marz_file(image, output+'/catalogue_r' + str(marz) +'.fits', outspec, output, r_lim=marz)
 
     
+    print('All done')
+    return objects
+
+
+def extractsources(catalogue, segmap, image, cube, check=False, output='.', helio=0,
+                outspec='Spectra', marz=False, rphot=False, sname='MUSE'):
+    """
+
+    Take catalogue and segmap (SEP format) and extracts their spectra from a MUSE cube
+    (adapted from findsources by NT)
+
+    catalogue -> fits file table with identified objects (output from SEP.extract())
+    segmap -> fits image with the segmentation map (output from SEP.extract())
+    image  -> fits image of reference from where the catalogue was constructed
+    cube    -> the cube used to extract spectra
+    output  -> where to dump the output
+    helio   -> pass additional heliocentric correction (should be 0. for MUSE pipeline after v1.2.1)
+    outspec -> where to store output spectra
+    marz    -> write spectra in also marz format (spectra needs to be true).
+               If set to numerical value, this is used as an r-band magnitude limit.
+    rphot   -> perform r-band aperture photometry and add r-band magnitudes to the catalogue
+    sname   -> prefix for the source names. Default = MUSE
+
+    """
+
+    import sep
+    from astropy.io import fits
+    from astropy import wcs
+    from astropy import coordinates
+    from astropy import units as u
+    from astropy import table
+    import numpy as np
+    import os
+    try:
+        from mypython.ifu import muse_utils as utl
+        from mypython.fits import pyregmask as msk
+    except ImportError:
+        from mypython import ifu
+        from ifu import muse_utils as utl
+        from mypython import fits
+        from fits import pyregmask as msk
+        from astropy.io import fits
+    from shutil import copyfile
+    import glob
+
+    img = fits.open(image)
+    try:
+        # this is ok for narrow band images
+        data = img[1].data
+    except:
+        # white cubex images
+        data = img[0].data
+    data = data.byteswap(True).newbyteorder()
+    # grab effective dimension
+    nex, ney = data.shape
+    # close fits
+    img.close()
+
+    # extracting sources at nsigma
+    # thresh = nsig * bkg.globalrms
+    # objects, segmap = sep.extract(data, thresh, segmentation_map=True,
+    #                                  minarea=minarea, clean=clean, mask=badmask, deblend_cont=0.0001)
+    objects = fits.getdata(catalogue)
+
+    header = fits.getheader(segmap)
+    imgwcs = wcs.WCS(header)
+
+    print("Will extract {} objects... ".format(len(objects)))
+
+    if not os.path.exists(outspec):
+        os.makedirs(outspec)
+
+    if 1:
+        # create a detection mask alla cubex
+        data = fits.getdata(segmap)
+        srcmask = np.zeros((1, data.shape[0], data.shape[1]))
+        nbj = 1
+        print('Generating spectra...')
+        # loop over detections
+        for obj in objects:
+            # init mask
+            tmpmask = np.zeros((data.shape[0], data.shape[1]), dtype=np.bool)
+            tmpmask3d = np.zeros((1, data.shape[0], data.shape[1]), dtype=np.bool)
+            # fill this mask
+            sep.mask_ellipse(tmpmask, obj['x'], obj['y'], obj['a'], obj['b'], obj['theta'], r=2)
+            tmpmask3d[0, :, :] = tmpmask[:, :]
+            srcmask = srcmask + tmpmask3d * nbj
+            if 1:
+                savename = "{}/id{}.fits".format(outspec, nbj)
+                if not os.path.exists(savename):
+                    utl.cube2spec(cube, obj['x'], obj['y'], None, write=savename,
+                                  shape='mask', helio=helio, mask=tmpmask3d, tovac=True)
+                else:
+                    print("{} already exists. Skipping it...".format(savename))
+            # go to next
+            nbj = nbj + 1
+
+
+    # Generate source names using coordinates and name prefix
+    ra, dec = imgwcs.wcs_pix2world(objects['x'], objects['y'], 0)
+    coord = coordinates.FK5(ra * u.degree, dec * u.degree)
+    rastr = coord.ra.to_string(u.hour, precision=2, sep='')
+    decstr = coord.dec.to_string(u.degree, precision=1, sep='', alwayssign=True)
+    name = [sname + 'J{0}{1}'.format(rastr[k], decstr[k]) for k in range(len(rastr))]
+    ids = np.arange(len(name))
+
+    # write source catalogue
+    print('Writing catalogue..')
+    tab = table.Table(objects)
+    if 'name' not in tab.colnames:
+        tab.add_column(table.Column(name), 0, name='name')
+    if 'ID' not in tab.colnames:
+        tab.add_column(table.Column(ids), 0, name='ID')
+    tab.write(output + '/catalogue.fits', overwrite=True)
+
+    # cols = fits.ColDefs(objects)
+    # cols.add_col(fits.Column(name, format='A'))
+    # tbhdu = fits.BinTableHDU.from_columns(cols)
+    # tbhdu.writeto(output+'/catalogue.fits',clobber=True)
+
+    # rband photometry
+    if (rphot):
+        if not os.path.exists(output + '/Image_R.fits'):
+            rimg, rvar, rwcsimg = utl.cube2img(cube, filt=129, write=output + '/Image_R.fits')
+        phot_r = sourcephot(output + '/catalogue.fits', output + '/Image_R.fits', output + '/segmap.fits', image)
+        phot_r.add_column(table.Column(name), 1, name='name')
+        tbhdu2 = fits.BinTableHDU(phot_r)
+
+    tbhdu = fits.open(output + '/catalogue.fits')[1]
+    hdulist = fits.HDUList([fits.PrimaryHDU(), tbhdu, tbhdu2])
+    hdulist.writeto(output + '/catalogue.fits', overwrite=True)
+
+    if ((marz)):
+        # if marz is True but no magnitude limit set, create marz file for whole catalogue
+        if marz == True:
+            marz_file(image, output + '/catalogue.fits', outspec, output)
+        else:
+            # create folder and catalogue with just sources brighter than mag limit
+            if os.path.exists(output + '/spectra_r' + str(marz)):
+                files = glob.glob(output + '/spectra_r' +
+                                  str(marz) + '/*')
+                for f in files:
+                    os.remove(f)
+            else:
+                os.mkdir(output + '/spectra_r' + str(marz))
+
+            mag = phot_r['MAGSEG']
+
+            # add in x y pixels from original catalogue
+            x, y = tbhdu.data['x'], tbhdu.data['y']
+            phot_r['x'], phot_r['y'] = x, y
+
+            # add in ra,dec
+            img = fits.open(image)
+            mywcs = wcs.WCS(img[0].header)
+            ra, dec = mywcs.all_pix2world(x, y, 0)
+            phot_r['RA'] = ra
+            phot_r['dec'] = dec
+
+            for i in range(len(mag)):
+                if mag[i] < marz:
+                    copyfile((output + '/spectra/id' + str(i + 1)
+                              + '.fits'), (output + '/spectra_r' +
+                                           str(marz) + '/id' + str(i + 1) + '.fits'))
+
+            # Write photometry catalog with objects below magnitude limit excluded
+            phot_r.remove_rows(phot_r['MAGSEG'] > marz)
+            catalogue_lim_name = (output + '/catalogue_r' +
+                                  str(marz) + '.fits')
+            if os.path.exists(catalogue_lim_name):
+                os.remove(catalogue_lim_name)
+            phot_r.write(catalogue_lim_name)
+
+            outspec = output + '/spectra_r' + str(marz)
+            marz_file(image, output + '/catalogue_r' + str(marz) + '.fits', outspec, output, r_lim=marz)
+
     print('All done')
     return objects
     
